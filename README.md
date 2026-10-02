@@ -18,6 +18,7 @@ Where `sitemap.xml` tells crawlers **what pages exist**, `entitymap.json` tells 
 | [`prompts/generate-entitymap.md`](prompts/generate-entitymap.md) | A detailed prompt for generating your first `entitymap.json` by hand with help from Claude, ChatGPT, or another LLM. |
 | [`CHANGELOG.md`](CHANGELOG.md) | Spec version history. |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | How to participate — Discussions for ideas, Issues for spec bugs. |
+| [`skills/entitymap-generator/`](skills/entitymap-generator/) | An Agent Skill (Claude Code / Claude.ai) that generates a validated `entitymap.json` + `entitymap.html` for any website, with live-verified evidence chunks and checked Wikidata `sameAs` links. Contributed in this fork. |
 
 ## The 30-second version
 
