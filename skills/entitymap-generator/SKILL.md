@@ -48,11 +48,12 @@ The scripts live next to this file in `scripts/`:
 - **Publisher name** is the canonical brand name as the business writes it: check the Organization JSON-LD `name`, the logo alt text, the footer © line and the About page. Never use a domain, a legal suffix the brand doesn't use in public, or a product name. It must be character-identical everywhere.
 - **Publisher URL** is the homepage canonical, exactly as served (scheme, `www`, trailing slash).
 - **Language** comes from `<html lang>`, which gives `opts.lang` for Wikidata. **Country** is the main market, as a Wikidata Q-id from the tool (e.g. US = Q30, UK = Q145, CA = Q16, AU = Q408, DE = Q183, FR = Q142, IN = Q668; confirm any other via `WD.reconcile` with type `Place`).
+- **Multilingual or multi-market sites:** an EntityMap lives at the domain root, so build it for the language/market version served at that root (check `hreflang`). Write descriptions in that language; chunks are always verbatim in the page's language. Separate country domains (e.g. `brand.de`, `brand.fr`) each get their own EntityMap.
 - **Archetype** is one of: local service, food & hospitality, retail/ecommerce/consumer brand, B2B/SaaS, YMYL health, YMYL finance/legal, publisher/media, public sector/non-profit. It only steers entity selection (see the reference below).
 
 ### 2. Inventory and page selection
 
-`await EM.sitemap()` returns the URL count and groups by first path segment. Then `EM.find('regex')` pulls URLs from the full list. If there's no sitemap, collect the nav and footer links from the homepage (`[...document.querySelectorAll('nav a, footer a')].map(a=>a.href)`).
+`await EM.sitemap()` returns the URL count and groups by first path segment. Then `EM.find('regex')` pulls URLs from the full list. If there's no sitemap (or only gzipped `.xml.gz` sitemaps, which the tool skips), collect the nav and footer links from the homepage (`[...document.querySelectorAll('nav a, footer a')].map(a=>a.href)`).
 
 Select about **12–30 pages**, scaling with site size:
 
@@ -88,7 +89,7 @@ WD.start('reconcile', [
 ], {lang:'en'}); await WD.poll()
 ```
 
-`alt` = **other names for the same thing only** (abbreviation, spelling variant, formal/legal name, the singular). Never put a broader category in `alt` — a plan's alt of "personal alarm" will happily match a different device. If a generic concept matters, make it its own Concept entity and link offerings to it with `INSTANCE_OF`.
+`alt` = **other names for the same thing only** (abbreviation, spelling variant, formal/legal name, the singular). Never put a broader category in `alt` — a subscription plan given the alt "alarm" or a menu item given the alt "pizza" will happily match an unrelated item. If a generic concept matters, make it its own Concept entity and link offerings to it with `INSTANCE_OF`.
 
 The tool searches Wikidata by every name and alias. It hard-rejects junk (scholarly articles, patents, disambiguation pages, name items, films, books…), acronym-only matches, type clashes (a Person must be human; an Organization must be an org or brand; a Concept or Service can't be a person, an organisation, a located place or a published work) and wrong-country candidates. It then returns a verdict.
 
@@ -167,7 +168,7 @@ Use the template below: same field order, IDs `e_001…` and `c_001…` numbered
    - `title MISMATCH`: use `pageTitleOnPage`.
    - `redirectsTo`: use the final URL.
    - noindex or non-200: pick a chunk from another page.
-3. Wikidata tab: `WD.start('verify', <WD.verify payload>); await WD.poll()`. Every row must be `pass: true`. Remove or fix any that fail (a redirect means use the target Q-id; a junk or type problem means drop it). A `notes: label differs` row may stay only if the Wikidata decisions table explains why it is the same referent (e.g. "careline alarm" = "medical alarm").
+3. Wikidata tab: `WD.start('verify', <WD.verify payload>); await WD.poll()`. Every row must be `pass: true`. Remove or fix any that fail (a redirect means use the target Q-id; a junk or type problem means drop it). A `notes: label differs` row may stay only if the Wikidata decisions table explains why it is the same referent (e.g. a regional term and Wikidata's international label, such as "lorry" = "truck").
 4. Loop until all three are clean.
 
 ### 10. HTML companion
@@ -208,16 +209,16 @@ Reply in 3–5 lines: counts, sameAs matched/omitted, anything needing human rev
 |---|---|---|
 | Organization | the publisher, sub-brands, regulators, accreditation bodies, partners, manufacturers | sameAs if MATCH |
 | Person | named people with a real role on the site | sameAs only if clearly the same person |
-| Service | human-delivered offerings: treatments, delivery, consultancy, monitoring plans, repairs | usually INSTANCE_OF |
+| Service | human-delivered offerings: treatments, delivery, consultancy, subscriptions, repairs | usually INSTANCE_OF |
 | PhysicalProduct | tangible goods and ranges: menu items, product lines, devices | INSTANCE_OF, or sameAs for exact branded products |
 | SoftwareProduct | apps and tools; **Platform** for marketplaces and ecosystems | sameAs if the exact product |
 | Concept | general domain terms the site explains (conditions, ingredients, techniques, legal concepts) | sameAs expected |
 | ProprietaryTerm | brand-coined names, schemes, loyalty programmes, trademarked methods | never sameAs; add canonicalLabel when there's a general term |
 | Methodology / Metric / Taxonomy | named processes; measurable quantities; classification systems the publisher maintains | as Concept |
 | Place | branches, service areas, venues (only if the site has real location content) | sameAs with country check |
-| Event | a named occurrence with a date (a switchover deadline, a launch, an annual event) | sameAs if exact |
+| Event | a named occurrence with a date (a regulatory deadline, a product launch, an annual conference or festival) | sameAs if exact |
 | Standard | voluntary specs with a governing body (ISO 9001, a quality framework) | sameAs if exact |
-| Regulation | enacted law or statutory rules (GDPR, VAT relief rules, Natasha's Law) | sameAs if exact |
+| Regulation | enacted law or statutory rules (GDPR, HIPAA, a national tax or consumer-protection law) | sameAs if exact |
 | Guide | substantial maintained instructional hubs | rarely |
 
 Decision rules:
