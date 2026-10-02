@@ -1,9 +1,10 @@
-// EntityMap site tools — paste once into a browser tab ON THE TARGET SITE'S ORIGIN, then call EM.* in later calls.
+// EntityMap site tools - paste once into a browser tab ON THE TARGET SITE'S ORIGIN, then call EM.* in later calls.
 window.EM = window.EM || {};
+const EM_U = (...c) => String.fromCharCode(...c); // ASCII-only source: special characters are built from char codes
 Object.assign(EM, {
   pages: EM.pages || {}, urls: EM.urls || [],
-  norm: s => (s || '').replace(/[   ​]/g, ' ').replace(/\s+/g, ' ').trim(),
-  loose: s => EM.norm(s).replace(/[‘’‚′`]/g, "'").replace(/[“”„″]/g, '"').replace(/[–—−]/g, '-').replace(/…/g, '...').toLowerCase(),
+  norm: s => (s || '').replace(new RegExp('[' + EM_U(0xa0, 0x2007, 0x202f, 0x200b) + ']', 'g'), ' ').replace(/\s+/g, ' ').trim(),
+  loose: s => EM.norm(s).replace(new RegExp('[`' + EM_U(0x2018, 0x2019, 0x201a, 0x2032) + ']', 'g'), "'").replace(new RegExp('[' + EM_U(0x201c, 0x201d, 0x201e, 0x2033) + ']', 'g'), '"').replace(new RegExp('[' + EM_U(0x2013, 0x2014, 0x2212) + ']', 'g'), '-').split(EM_U(0x2026)).join('...').toLowerCase(),
   async get(url) {
     const r = await fetch(url, { credentials: 'omit', redirect: 'follow' });
     return { status: r.status, finalUrl: r.url, type: r.headers.get('content-type') || '', text: await r.text() };
@@ -38,7 +39,7 @@ Object.assign(EM, {
     const body = (doc.body || doc.documentElement).cloneNode(true);
     body.querySelectorAll('script,style,noscript,template').forEach(n => n.remove());
     const tw = doc.createTreeWalker(body, 4), parts = []; while (tw.nextNode()) parts.push(tw.currentNode.nodeValue);
-    const fullText = EM.norm(body.textContent) + ' ‖ ' + EM.norm(parts.join(' '));
+    const fullText = EM.norm(body.textContent) + ' ' + EM_U(0x2016) + ' ' + EM.norm(parts.join(' '));
     const root = (q('main, [role=main], article') || doc.body).cloneNode(true);
     root.querySelectorAll('script,style,noscript,svg,iframe,template,form,nav,header,footer,aside,[aria-hidden="true"],[hidden]').forEach(n => n.remove());
     root.querySelectorAll('[id*="cookie" i],[class*="cookie" i],[id*="consent" i],[class*="consent" i]').forEach(n => n.remove());
@@ -68,7 +69,7 @@ Object.assign(EM, {
         Object.assign(p, { status: r.status, finalUrl: r.finalUrl, retrieved: new Date().toISOString().replace(/\.\d+Z$/, 'Z'), needsRender: p.blocks.join(' ').length < 600 });
         EM.pages[url] = p; if (r.finalUrl !== url) EM.pages[r.finalUrl] = p;
         const { fullText, ...view } = p;
-        view.blocks = p.blocks.slice(0, maxBlocks).map(b => b.length > maxLen ? b.slice(0, maxLen) + ' […]' : b);
+        view.blocks = p.blocks.slice(0, maxBlocks).map(b => b.length > maxLen ? b.slice(0, maxLen) + ' [...]' : b);
         view.totalBlocks = p.blocks.length; res.push(view);
       } catch (e) { res.push({ url, error: String(e) }); }
     }

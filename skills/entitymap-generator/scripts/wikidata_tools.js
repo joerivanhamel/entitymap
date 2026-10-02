@@ -1,10 +1,10 @@
-// EntityMap Wikidata tools — paste once into any browser tab (or run in Node 18+), then call WD.* in later calls.
+// EntityMap Wikidata tools - paste once into any browser tab (or run in Node 18+), then call WD.* in later calls.
 // Uses the public Wikidata API (CORS via origin=*) and the Wikidata Query Service. No API key needed.
 globalThis.WD = {
   api: 'https://www.wikidata.org/w/api.php', sparql: 'https://query.wikidata.org/sparql?format=json&query=',
   JUNK: { Q4167410: 'disambiguation page', Q22808320: 'name disambiguation', Q13442814: 'scholarly article', Q43305660: 'US patent', Q253623: 'patent', Q4167836: 'Wikimedia category', Q11266439: 'template', Q17633526: 'Wikinews article', Q13406463: 'Wikimedia list', Q14204246: 'project page', Q101352: 'family name', Q202444: 'given name', Q3305213: 'painting', Q482994: 'album', Q134556: 'single', Q7366: 'song', Q11424: 'film', Q5398426: 'TV series', Q21191270: 'TV episode', Q7889: 'video game', Q1002697: 'periodical', Q5633421: 'journal', Q191067: 'article', Q10870555: 'report', Q18918145: 'journal article', Q23927052: 'conference paper', Q1980247: 'chapter', Q3331189: 'edition', Q571: 'book', Q7725634: 'literary work', Q30612: 'clinical trial', Q87167: 'manuscript', Q15416: 'TV programme', Q17442446: 'Wikimedia internal item' },
   ROOTS: { org: ['Q43229', 'Q431289', 'Q4830453', 'Q783794'], place: ['Q17334923', 'Q2221906', 'Q618123', 'Q486972', 'Q82794', 'Q56061'], event: ['Q1190554', 'Q1656682'], creative: ['Q17537576', 'Q47461344', 'Q732577'], legal: ['Q820655', 'Q7748', 'Q1428955'], software: ['Q7397', 'Q35127', 'Q1668024'], taxon: ['Q16521'] },
-  norm(s) { return (s || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/&/g, ' and ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/^(the|dr|prof|professor|sir|dame|mr|mrs|ms|miss|lord|lady) /, '').replace(/( (mbe|obe|cbe|kbe|dbe|phd|md|frcs|frcp|mrcgp|bds|dds|dmd|esq|jr|sr))+$/, '').replace(/ies$/, 'y').replace(/(?<![s])s$/, ''); },
+  norm(s) { return (s || '').normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/&/g, ' and ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/^(the|dr|prof|professor|sir|dame|mr|mrs|ms|miss|lord|lady) /, '').replace(/( (mbe|obe|cbe|kbe|dbe|phd|md|frcs|frcp|mrcgp|bds|dds|dmd|esq|jr|sr))+$/, '').replace(/ies$/, 'y').replace(/(?<![s])s$/, ''); },
   async j(params) { const u = WD.api + '?' + new URLSearchParams({ format: 'json', origin: '*', ...params }); for (let i = 0; i < 3; i++) { const r = await fetch(u); if (r.ok) return r.json(); await new Promise(z => setTimeout(z, 1500 * (i + 1))); } throw new Error('API failed ' + u); },
   host(u) { try { return new URL(/^https?:/.test(u) ? u : 'https://' + u).hostname.replace(/^www\./, '').toLowerCase(); } catch (e) { return ''; } },
   queries(it) { const qs = new Set([it.name, ...(it.alt || [])]); const m = it.name.match(/^(.*?)\s*\(([^)]+)\)\s*$/); if (m) { qs.add(m[1]); qs.add(m[2]); } return [...qs].filter(Boolean); },
@@ -49,7 +49,7 @@ globalThis.WD = {
   // Hard type rules. f = class-tree flags (SPARQL), g = direct-claim signals. Returns rejection reason or ''.
   typeRule(type, f = {}, g = {}, websiteMatch = false) {
     const base = type.includes(':') ? 'Concept' : type;
-    if (base === 'Person') return g.human ? '' : 'not a human (P31≠Q5)';
+    if (base === 'Person') return g.human ? '' : 'not a human (P31!=Q5)';
     if (g.human) return 'is a human';
     if (base === 'Organization') return (f.org || g.orgLike || websiteMatch) ? '' : (f.sparqlError ? '' : 'not an organization/brand');
     if (base === 'Place') return (f.place || g.placeLike) ? '' : (f.sparqlError ? '' : 'not a place');
@@ -62,7 +62,7 @@ globalThis.WD = {
     return '';
   },
   // MAIN: items = [{key:'e_003', name:'...', alt:['...'], type:'Concept', context:'words from the site description', website:'https://...' (Organizations), country:'Q145' (Places/Organizations, optional)}]
-  // verdict: MATCH | AMBIGUOUS | REVIEW | NO_MATCH.  use: 'sameAs' or 'INSTANCE_OF' (offering matched to a generic class → relation with targetUri, never sameAs)
+  // verdict: MATCH | AMBIGUOUS | REVIEW | NO_MATCH.  use: 'sameAs' or 'INSTANCE_OF' (offering matched to a generic class -> relation with targetUri, never sameAs)
   async reconcile(items, opts = {}) {
     const lang = opts.lang || 'en', results = [];
     const perItem = [];
@@ -97,10 +97,10 @@ globalThis.WD = {
       let verdict, why;
       if (it.type === 'ProprietaryTerm') { verdict = 'NO_MATCH'; why = 'ProprietaryTerm never gets sameAs'; }
       else if (strong.length && strong[0].websiteMatch) { verdict = 'MATCH'; why = 'official website (P856) matches'; }
-      else if (it.type === 'Organization' && it.website && strong.length) { verdict = 'REVIEW'; why = 'name matches but P856 website does not — likely a different organisation'; }
+      else if (it.type === 'Organization' && it.website && strong.length) { verdict = 'REVIEW'; why = 'name matches but P856 website does not - likely a different organisation'; }
       else if (strong.length === 1) { verdict = 'MATCH'; why = (strong[0].exactLabel ? 'exact label' : 'exact alias') + ', type-compatible, unique'; }
-      else if (strong.length > 1 && strong.filter(s => s.exactLabel).length === 1 && strong[0].exactLabel && strong[0].wiki) { verdict = 'MATCH'; why = 'only candidate whose main label matches (others alias-only) — confirm description'; }
-      else if (strong.length > 1) { verdict = 'AMBIGUOUS'; why = strong.length + ' type-compatible exact-name candidates — decide from descriptions or omit'; }
+      else if (strong.length > 1 && strong.filter(s => s.exactLabel).length === 1 && strong[0].exactLabel && strong[0].wiki) { verdict = 'MATCH'; why = 'only candidate whose main label matches (others alias-only) - confirm description'; }
+      else if (strong.length > 1) { verdict = 'AMBIGUOUS'; why = strong.length + ' type-compatible exact-name candidates - decide from descriptions or omit'; }
       else if (cands.some(s => !s.junk)) { verdict = 'REVIEW'; why = 'no exact, type-compatible name match'; }
       else { verdict = 'NO_MATCH'; why = 'no candidates'; }
       const top = strong[0] || {};
@@ -114,8 +114,8 @@ globalThis.WD = {
   },
   // Background runner (the browser tool times out at ~45s): WD.start('reconcile', items, opts) then WD.poll()
   start(fn, ...args) { WD.job = { fn, done: false, t0: Date.now() }; WD[fn](...args).then(r => { WD.job.result = r; }).catch(e => { WD.job.error = String(e); }).finally(() => { WD.job.done = true; WD.job.ms = Date.now() - WD.job.t0; }); return 'started ' + fn; },
-  async poll(maxMs = 35000) { const t = Date.now(); while (!WD.job.done && Date.now() - t < maxMs) await new Promise(r => setTimeout(r, 1000)); return WD.job.done ? WD.job : 'still running (' + Math.round((Date.now() - WD.job.t0) / 1000) + 's) — call WD.poll() again'; },
-  // FINAL CHECK: list = [{key, qid, name, alt:[], type, website?}] — re-fetches every sameAs before publishing
+  async poll(maxMs = 35000) { const t = Date.now(); while (!WD.job.done && Date.now() - t < maxMs) await new Promise(r => setTimeout(r, 1000)); return WD.job.done ? WD.job : 'still running (' + Math.round((Date.now() - WD.job.t0) / 1000) + 's) - call WD.poll() again'; },
+  // FINAL CHECK: list = [{key, qid, name, alt:[], type, website?}] - re-fetches every sameAs before publishing
   async verify(list, opts = {}) {
     const lang = opts.lang || 'en', ids = [...new Set(list.map(x => x.qid))];
     const ents = await WD.entities(ids, lang), F = await WD.flags(ids);
@@ -123,10 +123,10 @@ globalThis.WD = {
       const e = ents[x.qid]; if (!e || 'missing' in e) return { key: x.key, qid: x.qid, pass: false, reason: 'item does not exist' };
       const s = WD.slim(e, lang), want = new Set(WD.queries(x).filter(q => !/^[A-Z0-9&.]{2,6}$/.test(q.trim())).map(WD.norm));
       const problems = [];
-      if (e.id !== x.qid) problems.push('redirects to ' + e.id + ' — use that');
+      if (e.id !== x.qid) problems.push('redirects to ' + e.id + ' - use that');
       const nameOk = s.names.some(n => want.has(WD.norm(n))) || (x.website && s.website.some(w => WD.host(w) === WD.host(x.website)));
       const notes = [];
-      if (!nameOk) notes.push('label differs from entity name/alternateName — keep only if the review file justifies it as the same referent');
+      if (!nameOk) notes.push('label differs from entity name/alternateName - keep only if the review file justifies it as the same referent');
       const junk = s.p31.map(p => WD.JUNK[p]).filter(Boolean); if (junk.length) problems.push('junk class: ' + junk.join(', '));
       const tr = WD.typeRule(x.type, F[e.id], WD.sig(e), !!(x.website && s.website.some(w => WD.host(w) === WD.host(x.website)))); if (tr) problems.push('type clash: ' + tr);
       if (x.type === 'ProprietaryTerm') problems.push('ProprietaryTerm must not carry sameAs');
